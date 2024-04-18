@@ -11,12 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('cash_flow', function (Blueprint $table) {
-            $table->foreignId('user_id')->constrained('users')->index();
-            $table->string('value')->nullable();
-            $table->string('limit')->nullable();
-            $table->string('transaction_count')->nullable();
-            $table->string('transaction_type')->nullable();
+        Schema::create('email_otps', function (Blueprint $table) {
+            $table->string('otp_code');
+            $table->string('email');
+            $table->datetime('expired_at')->nullable();
             $table->id();
             $table->timestamps();
         });
@@ -27,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('cash_flow');
+        Schema::dropIfExists('email_otps');
     }
 };
