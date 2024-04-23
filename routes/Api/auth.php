@@ -5,9 +5,10 @@ use Illuminate\Support\Facades\Route;
 
 Route::group(['namespace' => 'Auth'], function () {
     Route::post('register', [AuthenticateController::class, 'createUser']);
-    Route::post('info', [AuthenticateController::class, 'getInfo']);
     Route::post('send-otp', [AuthenticateController::class, 'sendOtp']);
     Route::post('login', [AuthenticateController::class, 'login']);
-    Route::post('transaction', [AuthenticateController::class, 'bankTransactions']);
-    Route::post('transaction-data', [AuthenticateController::class, 'transactionData']);
+    Route::group(['middleware' => 'auth:sanctum'], function () {
+        Route::post('logout', [AuthenticateController::class, 'logout']);
+        Route::post('info/{id}', [AuthenticateController::class, 'getInfo']);
+    });
 });

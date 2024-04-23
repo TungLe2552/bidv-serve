@@ -4,7 +4,7 @@ namespace App\Constants;
 
 final class UniCode
 {
-    public const decode = [
+    public const encode = [
         ' ' => "00110000",
         '!' => "00110001",
         '"' => "00110010",
@@ -100,7 +100,7 @@ final class UniCode
         '}' => "00101110",
         '~' => "00101111"
     ];
-    public const encode = [
+    public const decode = [
         "00110000" => " ",
         "00110001" => "!",
         "00110010" => "\"",

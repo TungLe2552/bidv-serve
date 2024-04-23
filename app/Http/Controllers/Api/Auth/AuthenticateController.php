@@ -8,17 +8,13 @@ use App\Mail\OtpMail;
 use App\Models\Auth\CashFlow;
 use App\Models\EmailOtp;
 use App\Models\Auth\PinCode;
-use App\Models\Auth\TransactionData;
 use App\Models\Auth\User;
 use App\Traits\ResponseType;
-use Crypt;
 use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Mail;
-use Defuse\Crypto\Crypto;
-use Defuse\Crypto\Key;
 
 class AuthenticateController extends Controller
 {
@@ -42,12 +38,18 @@ class AuthenticateController extends Controller
     public function createUser(Request $request)
     {
         DB::beginTransaction();
+        $value = UniCode::encode;
+        $email_arr = str_split($request->get('email'));
+        $arr_encode = [];
+        foreach($email_arr as $item){
+            $arr_encode[] = $value[$item];
+        }
         try {
             $user = User::create([
-                'email' => $request->get('email'),
+                'email' => implode("", $arr_encode),
                 'password' => $request->get('password'),
-                'user_name' => $request->get('user_name')
-
+                'user_name' => $request->get('user_name'),
+                'face_id'=>$request->get('face_id') || null
             ]);
             if ($request->has('pin')) {
                 PinCode::create(['code' => $request->get('pin'), 'user_id' => $user->id]);
@@ -60,15 +62,21 @@ class AuthenticateController extends Controller
             throw $th;
         }
     }
-    public function getInfo(Request $request)
+    public function getInfo(Request $request,$id)
     {
-        $result = User::with(['cash'])->where('email', $request->get('email'))->first();
+        $result = User::with(['cash'])->find($id);
         return $this->responseSuccess($result);
     }
     public function sendOtp(Request $request)
     {
         $credentials = $request->only('email', 'password');
-        $user = User::where('email', $credentials['email'])->first();
+        $value = UniCode::encode;
+        $email_arr = str_split($credentials['email']);
+        $arr_encode = [];
+        foreach($email_arr as $item){
+            $arr_encode[] = $value[$item];
+        }
+        $user = User::where('email', implode("", $arr_encode))->first();
         if (!$user || !Hash::check($credentials['password'], $user->password)) {
             abort(400, 'Tên đăng nhập hoặc mật khẩu không đúng');
         }
@@ -91,7 +99,13 @@ class AuthenticateController extends Controller
     {
         $otp = $request->input('otp_code');
         $credentials = $request->only('email', 'password');
-        $user = User::where('email', $credentials['email'])->first();
+        $value = UniCode::encode;
+        $email_arr = str_split($credentials['email']);
+        $arr_encode = [];
+        foreach($email_arr as $item){
+            $arr_encode[] = $value[$item];
+        }
+        $user = User::where('email', implode("", $arr_encode))->first();
         if (!$user || !Hash::check($credentials['password'], $user->password)) {
             abort(400, 'Tên đăng nhập hoặc mật khẩu không đúng');
         }
@@ -106,62 +120,14 @@ class AuthenticateController extends Controller
             // Xác thực thành công
             return response()->json(['message' => 'Mã OTP không đúng hoặc đã hết hạn'], 401);
         }
-        return $this->responseSuccess($user);
-    }
-    public function bankTransactions(Request $request)
-    {
-        $account_number = self::encode($request->get('account_number'));
-        $bank_name = self::encode($request->get('bank_name'));
-        $note = self::encode($request->get('note'));
-        $postage = self::encode($request->get('postage'));
-        $transaction_type = self::encode($request->get('transaction_type'));
-        $value = self::encode($request->get('value'));
-        TransactionData::create([
-            "account_number" => $account_number,
-            "bank_name" => $bank_name,
-            "note" => $note,
-            "postage" => $postage,
-            "transaction_type" => $transaction_type,
-            "value" => $value
-        ]);
-        return $this->responseSuccess();
-    }
-    public function transactionData(Request $request)
-    {
-        $transactions = TransactionData::query()->get();
-        $data = [];
-        foreach($transactions as $transaction){
-            $data[] = [
-                "account_number" => self::decode($transaction->account_number),
-                "bank_name" => self::decode($transaction->bank_name),
-                "note" => self::decode($transaction->note),
-                "postage" => self::decode($transaction->postage),
-                "transaction_type" => self::decode($transaction->transaction_type),
-                "value" => self::decode($transaction->value),
-            ];
-        }
-        return $this->responseSuccess($data);
-    }
-    private function encode($datas)
-    {
-        $value = UniCode::decode;
-        $array_data = str_split($datas);
-        foreach ($array_data as $data) {
-            $arr_encode[] = $value[$data];
-        }
-        $data_encode = Crypt::encrypt(implode("", $arr_encode));
-        return $data_encode;
-    }
-    private function decode($datas)
-    {
-        $encode = Crypt::decrypt($datas);
-        $value = UniCode::encode;
-        $array_data = str_split($encode, 8);
-        foreach ($array_data as $data) {
-            $arr_decode[] = $value[$data];
-        }
-        $data_decode = implode("", $arr_decode);
+        $token = $user->createToken('login_token');
 
-        return $data_decode;
+        return $this->responseSuccess($token->plainTextToken, ['user_id' => $user->id]);
+    }
+    public function logout(Request $request){
+        $token = $request->user()->currentAccessToken();
+        // Xóa token
+        $token->delete();
+        return response()->json(['message' => 'Successfully logged out']);
     }
 }
