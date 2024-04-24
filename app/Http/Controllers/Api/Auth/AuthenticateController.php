@@ -6,6 +6,7 @@ use App\Constants\UniCode;
 use App\Http\Controllers\Controller;
 use App\Mail\OtpMail;
 use App\Models\Auth\CashFlow;
+use App\Models\Auth\Partner;
 use App\Models\EmailOtp;
 use App\Models\Auth\PinCode;
 use App\Models\Auth\User;
@@ -41,20 +42,25 @@ class AuthenticateController extends Controller
         $value = UniCode::encode;
         $email_arr = str_split($request->get('email'));
         $arr_encode = [];
-        foreach($email_arr as $item){
+        foreach ($email_arr as $item) {
             $arr_encode[] = $value[$item];
         }
         try {
             $user = User::create([
                 'email' => implode("", $arr_encode),
                 'password' => $request->get('password'),
-                'user_name' => $request->get('user_name'),
-                'face_id'=>$request->get('face_id') || null
+                'face_id' => $request->get('face_id') || null
             ]);
             if ($request->has('pin')) {
                 PinCode::create(['code' => $request->get('pin'), 'user_id' => $user->id]);
             }
             CashFlow::create(['value' => '100000000', 'limit' => '50000000', 'user_id' => $user->id]);
+            Partner::create([
+                'name' => $request->get('user_name'),
+                'married' => $request->get('married'),
+                'occupation_id' => $request->get('occupation_id'),
+                'user_id' => $user->id
+            ]);
             DB::commit();
             return $this->responseSuccess();
         } catch (\Throwable $th) {
@@ -62,7 +68,7 @@ class AuthenticateController extends Controller
             throw $th;
         }
     }
-    public function getInfo(Request $request,$id)
+    public function getInfo(Request $request, $id)
     {
         $result = User::with(['cash'])->find($id);
         return $this->responseSuccess($result);
@@ -73,7 +79,7 @@ class AuthenticateController extends Controller
         $value = UniCode::encode;
         $email_arr = str_split($credentials['email']);
         $arr_encode = [];
-        foreach($email_arr as $item){
+        foreach ($email_arr as $item) {
             $arr_encode[] = $value[$item];
         }
         $user = User::where('email', implode("", $arr_encode))->first();
@@ -102,7 +108,7 @@ class AuthenticateController extends Controller
         $value = UniCode::encode;
         $email_arr = str_split($credentials['email']);
         $arr_encode = [];
-        foreach($email_arr as $item){
+        foreach ($email_arr as $item) {
             $arr_encode[] = $value[$item];
         }
         $user = User::where('email', implode("", $arr_encode))->first();
@@ -124,7 +130,8 @@ class AuthenticateController extends Controller
 
         return $this->responseSuccess($token->plainTextToken, ['user_id' => $user->id]);
     }
-    public function logout(Request $request){
+    public function logout(Request $request)
+    {
         $token = $request->user()->currentAccessToken();
         // Xóa token
         $token->delete();

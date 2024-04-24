@@ -6,21 +6,22 @@ namespace App\Models\Auth;
 
 use Illuminate\Database\Eloquent\Model;
 
-class TransactionData extends Model
+class Partner extends Model
 {
-    protected $table = 'transaction_data';
+    protected $table = 'partners';
     /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>
      */
     protected $fillable = [
-        'id',
-        'account_number',
-        'bank_name',
-        'note',
-        'postage',
-        'transaction_type',
-        'value'
+        'name',
+        'age',
+        'married',
+        'occupation_id',
+        'user_id'
+    ];
+    protected $casts = [
+        'married' => 'boolean',
     ];
 }
