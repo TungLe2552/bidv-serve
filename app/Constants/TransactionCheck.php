@@ -4,10 +4,14 @@ namespace App\Constants;
 
 final class TransactionCheck
 {
+    public const age_group = [
+        [18, 25], // Khoảng tuổi 18-25
+        [26, 36], // Khoảng tuổi 26-36
+    ];
     public const data = [
-        "Nu" => [
+        "0" => [
             '18' => [
-                'alon' => [
+                '0' => [
                     'cntt' => [
                         'learn' => '5000000',
                         'utilities' => '1000000',
@@ -16,8 +20,8 @@ final class TransactionCheck
                         'phone_recharge' => '100000'
                     ]
                 ],
-                'maried' => [
-                    'helth_care' => [
+                '1' => [
+                    'health_care' => [
                         'utilities' => '15000000',
                         'shopping' => '1000000',
                         'tranfer' => '5000000',
@@ -29,7 +33,7 @@ final class TransactionCheck
                 ]
             ],
             '26' => [
-                'alon' => [
+                '0' => [
                     'doctor' => [
                         'learn' => '5000000',
                         'utilities' => '2000000',
@@ -40,7 +44,7 @@ final class TransactionCheck
                         'savings' => '1000000'
                     ]
                 ],
-                'maried' => [
+                '1' => [
                     'teacher' => [
                         'learn' => '8000000',
                         'utilities' => '2000000',
@@ -53,9 +57,9 @@ final class TransactionCheck
                 ],
             ]
         ],
-        'Nam' => [
+        '1' => [
             '26' => [
-                'alon' => [
+                '0' => [
                     'marketing' => [
                         'utilities' => '1000000',
                         'shopping' => '2000000',
@@ -65,7 +69,7 @@ final class TransactionCheck
                         'savings' => '1000000'
                     ]
                 ],
-                'married' => [
+                '1' => [
                     'engineer' => [
                         'utilities' => '5000000',
                         'shopping' => '2000000',

@@ -16,10 +16,11 @@ class Partner extends Model
      */
     protected $fillable = [
         'name',
-        'age',
+        'birth_date',
         'married',
         'occupation_id',
-        'user_id'
+        'user_id',
+        'gender'
     ];
     protected $casts = [
         'married' => 'boolean',

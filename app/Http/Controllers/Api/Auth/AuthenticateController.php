@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api\Auth;
 use App\Constants\UniCode;
 use App\Http\Controllers\Controller;
 use App\Mail\OtpMail;
+use App\Models\Auth\BankCard;
 use App\Models\Auth\CashFlow;
+use App\Models\Auth\Occupation;
 use App\Models\Auth\Partner;
 use App\Models\EmailOtp;
 use App\Models\Auth\PinCode;
@@ -45,6 +47,7 @@ class AuthenticateController extends Controller
         foreach ($email_arr as $item) {
             $arr_encode[] = $value[$item];
         }
+
         try {
             $user = User::create([
                 'email' => implode("", $arr_encode),
@@ -54,12 +57,15 @@ class AuthenticateController extends Controller
             if ($request->has('pin')) {
                 PinCode::create(['code' => $request->get('pin'), 'user_id' => $user->id]);
             }
-            CashFlow::create(['value' => '100000000', 'limit' => '50000000', 'user_id' => $user->id]);
+            $code = mt_rand(1000000000000, 9999999999999);
+            BankCard::create(['mount' => '100000000', 'limit' => '50000000', 'user_id' => $user->id,'code'=>$code]);
             Partner::create([
                 'name' => $request->get('user_name'),
+                'gender' => $request->get('gender'),
                 'married' => $request->get('married'),
                 'occupation_id' => $request->get('occupation_id'),
-                'user_id' => $user->id
+                'user_id' => $user->id,
+                'birth_date'=>$request->get('birth_date')
             ]);
             DB::commit();
             return $this->responseSuccess();
@@ -70,7 +76,7 @@ class AuthenticateController extends Controller
     }
     public function getInfo(Request $request, $id)
     {
-        $result = User::with(['cash'])->find($id);
+        $result = User::with(['bankCard','partner'])->find($id);
         return $this->responseSuccess($result);
     }
     public function sendOtp(Request $request)
@@ -136,5 +142,9 @@ class AuthenticateController extends Controller
         // Xóa token
         $token->delete();
         return response()->json(['message' => 'Successfully logged out']);
+    }
+    public function getOccupations(){
+        $occupations = Occupation::query()->get();
+        return $this->responseSuccess($occupations);
     }
 }

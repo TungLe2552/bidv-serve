@@ -40,7 +40,8 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
-        'face_id'
+        'face_id',
+        'email'
     ];
 
     /**
@@ -52,8 +53,12 @@ class User extends Authenticatable
         'active' => 'boolean',
         'password' => 'hashed',
     ];
-    public function cash()
+    public function bankCard()
     {
-        return $this->hasOne(CashFlow::class, 'user_id');
+        return $this->hasOne(BankCard::class, 'user_id');
+    }
+    public function partner()
+    {
+        return $this->hasOne(Partner::class, 'user_id');
     }
 }

@@ -15,7 +15,8 @@ return new class extends Migration
             $table->id();
             $table->timestamps();
             $table->string('name');
-            $table->string('age')->nullable();
+            $table->string('gender');
+            $table->date('birth_date');
             $table->boolean('married')->default(false);
             $table->foreignId('occupation_id')->nullable()->constrained('occupations');
             $table->foreignId('user_id')->constrained('users');

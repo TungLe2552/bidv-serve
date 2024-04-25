@@ -6,9 +6,9 @@ namespace App\Models\Auth;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
-class CashFlow extends Authenticatable
+class BankCard extends Authenticatable
 {
-    protected $table = 'cash_flow';
+    protected $table = 'bank_cards';
     /**
      * The attributes that are mass assignable.
      *
@@ -16,8 +16,8 @@ class CashFlow extends Authenticatable
      */
     protected $fillable = [
         'user_id',
-        'value',
+        'mount',
         'limit',
-        'transaction_count'
+        'code'
     ];
 }

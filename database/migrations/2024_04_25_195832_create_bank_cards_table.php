@@ -11,12 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('cash_flow', function (Blueprint $table) {
+        Schema::create('bank_cards', function (Blueprint $table) {
             $table->foreignId('user_id')->constrained('users')->index();
-            $table->string('value')->nullable();
+            $table->double('mount')->nullable();
+            $table->string('code');
             $table->string('limit')->nullable();
-            $table->string('transaction_count')->nullable();
-            $table->string('transaction_type')->nullable();
             $table->id();
             $table->timestamps();
         });
@@ -27,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('cash_flow');
+        Schema::dropIfExists('bank_cards');
     }
 };
