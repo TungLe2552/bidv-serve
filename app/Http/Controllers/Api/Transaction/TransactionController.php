@@ -187,7 +187,6 @@ class TransactionController extends Controller
         } else {
             return true;
         }
-
         if ($check_type) {
             $check_value = intval($value_decode) < intval($check_type);
         } else {
