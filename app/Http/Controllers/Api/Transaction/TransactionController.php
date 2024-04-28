@@ -13,6 +13,7 @@ use App\Models\Auth\User;
 use App\Models\EmailOtp;
 use App\Traits\ResponseType;
 use Crypt;
+use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Mail;
@@ -35,79 +36,17 @@ class TransactionController extends Controller
      */
     public function bankTransactions(Request $request)
     {
-        $user = $request->user();
-        // mã hoá dữ liệu sang aes
-        $account_number = self::encode($request->get('account_number'));
-        $bank_name = self::encode($request->get('bank_name'));
-        $note = self::encode($request->get('note'));
-        $postage = self::encode($request->get('postage'));
-        $transaction_type = self::encode($request->get('transaction_type'));
-        $value = self::encode($request->get('value'));
-        //  kiểm tra dữ liệu
-        $bank_card = BankCard::where('user_id', $user->id)->first();
-        if (intval($request->get('value')) > intval($bank_card->limit)) {
-            abort(100, 'Bạn chỉ được giao dịch tối đa 50.000.000 cho 1 lần giao dịch');
-        }
-        $mount = intval($bank_card->mount) - intval($request->get('value'));
-        if ($mount < 0) {
-            abort(100, 'Tài khoản của bạn không đủ để thực hiện giao dịch');
-        }
-        $check = self::checkTransaction($value, $transaction_type, $user->id);
-        if ($check) {
-            TransactionData::create([
-                "account_number" => $account_number,
-                "bank_name" => $bank_name,
-                "note" => $note,
-                "postage" => $postage,
-                "transaction_type" => $transaction_type,
-                "value" => $value
-            ]);
-            $bank_card->mount = $mount;
-            $bank_card->save();
-            return $this->responseSuccess(['has_otp' => false]);
-        } else {
-            $otp = mt_rand(100000, 999999);
-            $expiredAt = now()->addSecond(30);
-            $email = self::decodeUni($user->email);
-            // Lưu OTP vào database
-            EmailOtp::create([
-                'email' => $email,
-                'otp_code' => $otp,
-                'expired_at' => $expiredAt,
-            ]);
-            // Gửi OTP qua email
-            Mail::to($email)->send(new OtpMail($otp));
-            return $this->responseSuccess(['has_otp' => true]);
-        }
-    }
-    public function acceptOtpBankTransaction(Request $request)
-    {
-        $user = $request->user();
-        $otp = $request->input('otp_code');
-        $email = self::decodeUni($user->email);
-        $otpRecord = EmailOtp::where('email', $email)
-            ->where('otp_code', $otp)
-            ->where('expired_at', '>', now())
-            ->orderBy('created_at', 'desc')
-            ->first();
-        if (!$otpRecord) {
-            // Xác thực thành công
-            abort(400, 'Mã OTP không đúng hoặc đã hết hạn');
-        } else {
+        DB::beginTransaction();
+        try {
+            $user = $request->user();
+            // mã hoá dữ liệu sang aes
             $account_number = self::encode($request->get('account_number'));
             $bank_name = self::encode($request->get('bank_name'));
             $note = self::encode($request->get('note'));
             $postage = self::encode($request->get('postage'));
             $transaction_type = self::encode($request->get('transaction_type'));
             $value = self::encode($request->get('value'));
-            TransactionData::create([
-                "account_number" => $account_number,
-                "bank_name" => $bank_name,
-                "note" => $note,
-                "postage" => $postage,
-                "transaction_type" => $transaction_type,
-                "value" => $value
-            ]);
+            //  kiểm tra dữ liệu
             $bank_card = BankCard::where('user_id', $user->id)->first();
             if (intval($request->get('value')) > intval($bank_card->limit)) {
                 abort(100, 'Bạn chỉ được giao dịch tối đa 50.000.000 cho 1 lần giao dịch');
@@ -116,9 +55,81 @@ class TransactionController extends Controller
             if ($mount < 0) {
                 abort(100, 'Tài khoản của bạn không đủ để thực hiện giao dịch');
             }
-            $bank_card->mount = $mount;
-            $bank_card->save();
-            return $this->responseSuccess();
+            $check = self::checkTransaction($value, $transaction_type, $user->id);
+            if ($check) {
+                TransactionData::create([
+                    "account_number" => $account_number,
+                    "bank_name" => $bank_name,
+                    "note" => $note,
+                    "postage" => $postage,
+                    "transaction_type" => $transaction_type,
+                    "value" => $value
+                ]);
+                $bank_card->mount = $mount;
+                $bank_card->save();
+                return $this->responseSuccess(['has_otp' => false]);
+            } else {
+                $otp = mt_rand(100000, 999999);
+                $expiredAt = now()->addSecond(30);
+                $email = self::decodeUni($user->email);
+                // Lưu OTP vào database
+                EmailOtp::create([
+                    'email' => $email,
+                    'otp_code' => $otp,
+                    'expired_at' => $expiredAt,
+                ]);
+                // Gửi OTP qua email
+                Mail::to($email)->send(new OtpMail($otp));
+                return $this->responseSuccess(['has_otp' => true]);
+            }
+        } catch (\Throwable $th) {
+            throw $th;
+        }
+    }
+    public function acceptOtpBankTransaction(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $user = $request->user();
+            $otp = $request->input('otp_code');
+            $email = self::decodeUni($user->email);
+            $otpRecord = EmailOtp::where('email', $email)
+                ->where('otp_code', $otp)
+                ->where('expired_at', '>', now())
+                ->orderBy('created_at', 'desc')
+                ->first();
+            if (!$otpRecord) {
+                // Xác thực thành công
+                abort(400, 'Mã OTP không đúng hoặc đã hết hạn');
+            } else {
+                $account_number = self::encode($request->get('account_number'));
+                $bank_name = self::encode($request->get('bank_name'));
+                $note = self::encode($request->get('note'));
+                $postage = self::encode($request->get('postage'));
+                $transaction_type = self::encode($request->get('transaction_type'));
+                $value = self::encode($request->get('value'));
+                TransactionData::create([
+                    "account_number" => $account_number,
+                    "bank_name" => $bank_name,
+                    "note" => $note,
+                    "postage" => $postage,
+                    "transaction_type" => $transaction_type,
+                    "value" => $value
+                ]);
+                $bank_card = BankCard::where('user_id', $user->id)->first();
+                if (intval($request->get('value')) > intval($bank_card->limit)) {
+                    abort(100, 'Bạn chỉ được giao dịch tối đa 50.000.000 cho 1 lần giao dịch');
+                }
+                $mount = intval($bank_card->mount) - intval($request->get('value'));
+                if ($mount < 0) {
+                    abort(100, 'Tài khoản của bạn không đủ để thực hiện giao dịch');
+                }
+                $bank_card->mount = $mount;
+                $bank_card->save();
+                return $this->responseSuccess();
+            }
+        } catch (\Throwable $th) {
+            throw $th;
         }
     }
     public function transactionData(Request $request)
