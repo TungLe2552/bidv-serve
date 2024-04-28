@@ -67,6 +67,7 @@ class TransactionController extends Controller
                 ]);
                 $bank_card->mount = $mount;
                 $bank_card->save();
+                DB::commit();
                 return $this->responseSuccess(['has_otp' => false]);
             } else {
                 $otp = mt_rand(100000, 999999);
@@ -80,6 +81,7 @@ class TransactionController extends Controller
                 ]);
                 // Gửi OTP qua email
                 Mail::to($email)->send(new OtpMail($otp));
+                DB::commit();
                 return $this->responseSuccess(['has_otp' => true]);
             }
         } catch (\Throwable $th) {
@@ -95,9 +97,10 @@ class TransactionController extends Controller
             $email = self::decodeUni($user->email);
             $otpRecord = EmailOtp::where('email', $email)
                 ->where('otp_code', $otp)
-                ->where('expired_at', '>', now())
+                // ->where('expired_at', '>', now())
                 ->orderBy('created_at', 'desc')
                 ->first();
+
             if (!$otpRecord) {
                 // Xác thực thành công
                 abort(400, 'Mã OTP không đúng hoặc đã hết hạn');
@@ -126,6 +129,7 @@ class TransactionController extends Controller
                 }
                 $bank_card->mount = $mount;
                 $bank_card->save();
+                DB::commit();
                 return $this->responseSuccess();
             }
         } catch (\Throwable $th) {
