@@ -6,6 +6,7 @@ use App\Constants\TransactionCheck;
 use App\Constants\UniCode;
 use App\Http\Controllers\Controller;
 use App\Mail\OtpMail;
+use App\Models\Auth\BankCard;
 use App\Models\Auth\Occupation;
 use App\Models\Auth\TransactionData;
 use App\Models\Auth\User;
@@ -43,6 +44,14 @@ class TransactionController extends Controller
         $transaction_type = self::encode($request->get('transaction_type'));
         $value = self::encode($request->get('value'));
         //  kiểm tra dữ liệu
+        $bank_card = BankCard::where('user_id', $user->id)->first();
+        if (intval($request->get('value')) > intval($bank_card->limit)) {
+            abort(100, 'Bạn chỉ được giao dịch tối đa 50.000.000 cho 1 lần giao dịch');
+        }
+        $mount = intval($bank_card->mount) - intval($request->get('value'));
+        if ($mount < 0) {
+            abort(100, 'Tài khoản của bạn không đủ để thực hiện giao dịch');
+        }
         $check = self::checkTransaction($value, $transaction_type, $user->id);
         if ($check) {
             TransactionData::create([
@@ -53,6 +62,8 @@ class TransactionController extends Controller
                 "transaction_type" => $transaction_type,
                 "value" => $value
             ]);
+            $bank_card->mount = $mount;
+            $bank_card->save();
             return $this->responseSuccess(['has_otp' => false]);
         } else {
             $otp = mt_rand(100000, 999999);
@@ -81,7 +92,7 @@ class TransactionController extends Controller
             ->first();
         if (!$otpRecord) {
             // Xác thực thành công
-            abort(400,'Mã OTP không đúng hoặc đã hết hạn');
+            abort(400, 'Mã OTP không đúng hoặc đã hết hạn');
         } else {
             $account_number = self::encode($request->get('account_number'));
             $bank_name = self::encode($request->get('bank_name'));
@@ -97,6 +108,16 @@ class TransactionController extends Controller
                 "transaction_type" => $transaction_type,
                 "value" => $value
             ]);
+            $bank_card = BankCard::where('user_id', $user->id)->first();
+            if (intval($request->get('value')) > intval($bank_card->limit)) {
+                abort(100, 'Bạn chỉ được giao dịch tối đa 50.000.000 cho 1 lần giao dịch');
+            }
+            $mount = intval($bank_card->mount) - intval($request->get('value'));
+            if ($mount < 0) {
+                abort(100, 'Tài khoản của bạn không đủ để thực hiện giao dịch');
+            }
+            $bank_card->mount = $mount;
+            $bank_card->save();
             return $this->responseSuccess();
         }
     }
@@ -104,15 +125,15 @@ class TransactionController extends Controller
     {
         $transactions = TransactionData::query()->get();
         $data = [];
-        if($transactions){
+        if ($transactions) {
             foreach ($transactions as $transaction) {
                 $data[] = [
-                    "account_number" => self::decode($transaction->account_number??null),
-                    "bank_name" => self::decode($transaction->bank_name??null),
-                    "note" => self::decode($transaction->note??null),
-                    "postage" => self::decode($transaction->postage??null),
-                    "transaction_type" => self::decode($transaction->transaction_type??null),
-                    "value" => self::decode($transaction->value??null),
+                    "account_number" => self::decode($transaction->account_number ?? null),
+                    "bank_name" => self::decode($transaction->bank_name ?? null),
+                    "note" => self::decode($transaction->note ?? null),
+                    "postage" => self::decode($transaction->postage ?? null),
+                    "transaction_type" => self::decode($transaction->transaction_type ?? null),
+                    "value" => self::decode($transaction->value ?? null),
                     "created_at" => $transaction->created_at,
                 ];
             }
@@ -138,7 +159,7 @@ class TransactionController extends Controller
     {
         $value = UniCode::decode;
         // chuyển aes sang bit
-        if(!$datas){
+        if (!$datas) {
             return;
         }
         $encode = Crypt::decrypt($datas);
@@ -172,7 +193,7 @@ class TransactionController extends Controller
         $occupation = Occupation::find($user_info->partner->occupation_id);
         $age = \Carbon\Carbon::parse($user_info->partner->birth_date)->age;
         $age_check = null;
-        if(intval($value_decode) > 10000000){
+        if (intval($value_decode) > 10000000) {
             return false;
         }
         foreach ($age_group as $range) {
