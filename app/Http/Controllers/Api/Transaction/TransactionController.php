@@ -35,13 +35,16 @@ class TransactionController extends Controller
     public function bankTransactions(Request $request)
     {
         $user = $request->user();
+        // mã hoá dữ liệu sang aes
         $account_number = self::encode($request->get('account_number'));
         $bank_name = self::encode($request->get('bank_name'));
         $note = self::encode($request->get('note'));
         $postage = self::encode($request->get('postage'));
         $transaction_type = self::encode($request->get('transaction_type'));
         $value = self::encode($request->get('value'));
+        //  kiểm tra dữ liệu
         $check = self::checkTransaction($value, $transaction_type, $user->id);
+        dd($check);
         if ($check) {
             TransactionData::create([
                 "account_number" => $account_number,
@@ -79,7 +82,7 @@ class TransactionController extends Controller
             ->first();
         if (!$otpRecord) {
             // Xác thực thành công
-            return response()->json(['message' => 'Mã OTP không đúng hoặc đã hết hạn'], 401);
+            return response()->json(['message' => 'Mã OTP không đúng hoặc đã hết hạn'], 400);
         } else {
             $account_number = self::encode($request->get('account_number'));
             $bank_name = self::encode($request->get('bank_name'));
@@ -102,15 +105,18 @@ class TransactionController extends Controller
     {
         $transactions = TransactionData::query()->get();
         $data = [];
-        foreach ($transactions as $transaction) {
-            $data[] = [
-                "account_number" => self::decode($transaction->account_number),
-                "bank_name" => self::decode($transaction->bank_name),
-                "note" => self::decode($transaction->note),
-                "postage" => self::decode($transaction->postage),
-                "transaction_type" => self::decode($transaction->transaction_type),
-                "value" => self::decode($transaction->value),
-            ];
+        if($transactions){
+            foreach ($transactions as $transaction) {
+                $data[] = [
+                    "account_number" => self::decode($transaction->account_number??null),
+                    "bank_name" => self::decode($transaction->bank_name??null),
+                    "note" => self::decode($transaction->note??null),
+                    "postage" => self::decode($transaction->postage??null),
+                    "transaction_type" => self::decode($transaction->transaction_type??null),
+                    "value" => self::decode($transaction->value??null),
+                    "created_at" => $transaction->created_at,
+                ];
+            }
         }
         return $this->responseSuccess($data);
     }
@@ -119,18 +125,25 @@ class TransactionController extends Controller
         if (!$datas) {
             return;
         }
+        //  mã hoá sang bit
         $value = UniCode::encode;
         $array_data = str_split($datas);
         foreach ($array_data as $data) {
             $arr_encode[] = $value[$data];
         }
+        // mã hoá aes
         $data_encode = Crypt::encrypt(implode("", $arr_encode));
         return $data_encode;
     }
     private function decode($datas)
     {
         $value = UniCode::decode;
+        // chuyển aes sang bit
+        if(!$datas){
+            return;
+        }
         $encode = Crypt::decrypt($datas);
+        // chuyển bit sang unicode
         $array_data = str_split($encode, 8);
         foreach ($array_data as $data) {
             $arr_decode[] = $value[$data];
@@ -160,6 +173,9 @@ class TransactionController extends Controller
         $occupation = Occupation::find($user_info->partner->occupation_id);
         $age = \Carbon\Carbon::parse($user_info->partner->birth_date)->age;
         $age_check = null;
+        if(intval($value_decode) > 10000000){
+            return false;
+        }
         foreach ($age_group as $range) {
             $start = $range[0];
             $end = $range[1];

@@ -13,6 +13,7 @@ use App\Models\EmailOtp;
 use App\Models\Auth\PinCode;
 use App\Models\Auth\User;
 use App\Traits\ResponseType;
+use Crypt;
 use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -47,7 +48,6 @@ class AuthenticateController extends Controller
         foreach ($email_arr as $item) {
             $arr_encode[] = $value[$item];
         }
-
         try {
             $user = User::create([
                 'email' => implode("", $arr_encode),
