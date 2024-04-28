@@ -44,7 +44,6 @@ class TransactionController extends Controller
         $value = self::encode($request->get('value'));
         //  kiểm tra dữ liệu
         $check = self::checkTransaction($value, $transaction_type, $user->id);
-        dd($check);
         if ($check) {
             TransactionData::create([
                 "account_number" => $account_number,
@@ -82,7 +81,7 @@ class TransactionController extends Controller
             ->first();
         if (!$otpRecord) {
             // Xác thực thành công
-            return response()->json(['message' => 'Mã OTP không đúng hoặc đã hết hạn'], 400);
+            abort(400,'Mã OTP không đúng hoặc đã hết hạn');
         } else {
             $account_number = self::encode($request->get('account_number'));
             $bank_name = self::encode($request->get('bank_name'));

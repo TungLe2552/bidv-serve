@@ -129,8 +129,7 @@ class AuthenticateController extends Controller
             ->first();
 
         if (!$otpRecord) {
-            // Xác thực thành công
-            return response()->json(['message' => 'Mã OTP không đúng hoặc đã hết hạn'], 401);
+            abort(400,'Mã OTP không đúng hoặc đã hết hạn');
         }
         $token = $user->createToken('login_token');
 
