@@ -18,6 +18,11 @@ class BankCard extends Authenticatable
         'user_id',
         'mount',
         'limit',
-        'code'
+        'code',
+        'count_false',
+        'active'
+    ];
+    protected $casts = [
+        'active' => 'boolean',
     ];
 }

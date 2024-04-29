@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('password');
             $table->boolean('active')->default(true);
             $table->string('face_id')->nullable();
+            $table->integer('count_false')->default(0);
             $table->rememberToken();
             $table->timestamps();
         });

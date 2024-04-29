@@ -122,6 +122,9 @@ class AuthenticateController extends Controller
             abort(400, 'Tên đăng nhập hoặc mật khẩu không đúng');
         }
         // Kiểm tra xem OTP có tồn tại và chưa hết hạn không
+        if(!$user->active){
+            abort(400, 'Tài khoản của bạn đã bị khoá vì nhập sai mã OTP quá 3 lần');
+        }
         $otpRecord = EmailOtp::where('email', $credentials['email'])
             ->where('otp_code', $otp)
             ->where('expired_at', '>', now())
@@ -129,9 +132,13 @@ class AuthenticateController extends Controller
             ->first();
 
         if (!$otpRecord) {
+            $user->count_false += 1;
+            $user->save();
             abort(400,'Mã OTP không đúng hoặc đã hết hạn');
         }
         $token = $user->createToken('login_token');
+        $user->count_false = 0;
+        $user->save();
 
         return $this->responseSuccess($token->plainTextToken, ['user_id' => $user->id]);
     }
