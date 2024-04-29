@@ -11,6 +11,7 @@ use App\Models\Auth\Occupation;
 use App\Models\Auth\PinCode;
 use App\Models\Auth\TransactionData;
 use App\Models\Auth\User;
+use App\Models\Auth\UserMaxTransaction;
 use App\Models\EmailOtp;
 use App\Traits\ResponseType;
 use Crypt;
@@ -109,6 +110,7 @@ class TransactionController extends Controller
     public function acceptOtpBankTransaction(Request $request)
     {
         $user = $request->user();
+        $max_value_data = UserMaxTransaction::where('user_id',$user->id)->where('transaction_type',$request->get('transaction_type'))->first();
         $bank_card = BankCard::where('user_id', $user->id)->first();
         if (!$bank_card->active && $bank_card->count_false_otp >= 3) {
             abort(400, 'Thẻ của bạn đã bị khoá giao dịch do nhập sai mã otp quá 3 lần');
@@ -140,6 +142,12 @@ class TransactionController extends Controller
                 "postage" => $postage,
                 "transaction_type" => $transaction_type,
                 "value" => $value
+            ]);
+            UserMaxTransaction::updateOrCreate([
+                'user_id' => $user ->id,
+                'transaction_type'=>$request->get('transaction_type')
+            ],[
+                'max_value'=>$max_value_data && (intval($max_value_data->value) > intval($request->get('value'))) ? $max_value_data->value: $request->get('value')
             ]);
             if (intval($request->get('value')) > intval($bank_card->limit)) {
                 abort(100, 'Bạn chỉ được giao dịch tối đa 50.000.000 cho 1 lần giao dịch');
@@ -240,6 +248,9 @@ class TransactionController extends Controller
     {
 
         $type_decode = self::decode($type);
+        $type_check_data = UserMaxTransaction::where('user_id',$user_id)->get()->mapWithKeys(function ($item, $key) {
+            return [$item->transaction_type => $item->max_value];
+        });;
         $value_decode = self::decode($value);
         $data_check = TransactionCheck::data;
         $age_group = TransactionCheck::age_group;
@@ -247,6 +258,7 @@ class TransactionController extends Controller
         $occupation = Occupation::find($user_info->partner->occupation_id);
         $age = \Carbon\Carbon::parse($user_info->partner->birth_date)->age;
         $age_check = null;
+        $check_value = true;
         if (intval($value_decode) >= 10000000) {
             return false;
         }
@@ -260,6 +272,7 @@ class TransactionController extends Controller
         }
         $check_gender = $data_check[$user_info->partner->gender];
         $check_age = $check_gender[$age_check] ?? null;
+
         if ($check_age) {
             $check_married = $check_age[$user_info->partner->married] ?? null;
         } else {
@@ -278,7 +291,15 @@ class TransactionController extends Controller
             return true;
         }
         if ($check_type) {
-            $check_value = intval($value_decode) < intval($check_type);
+            $data_value = null;
+            if(count($type_check_data)>0){
+                $data_value = $type_check_data[$type_decode];
+            }
+            if($data_value){
+                $check_value = intval($value_decode) <= intval($data_value);
+            }else{
+                $check_value = intval($value_decode) <= intval($check_type);
+            }
         } else {
             return true;
         }
