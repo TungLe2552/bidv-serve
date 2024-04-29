@@ -7,4 +7,5 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::post('transaction', [TransactionController::class, 'bankTransactions']);
     Route::post('check-otp-transaction', [TransactionController::class, 'acceptOtpBankTransaction']);
     Route::post('transaction-data', [TransactionController::class, 'transactionData']);
+    Route::post('sent-otp-tran', [TransactionController::class, 'sentOptTran']);
 });

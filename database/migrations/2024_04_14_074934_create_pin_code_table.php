@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::create('pin_code', function (Blueprint $table) {
             $table->string('code');
             $table->foreignId('user_id')->constrained('users')->index();
-            $table->integer('count_enter')->nullable();
             $table->id();
             $table->timestamps();
         });

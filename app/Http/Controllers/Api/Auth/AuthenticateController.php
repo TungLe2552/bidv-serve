@@ -54,8 +54,8 @@ class AuthenticateController extends Controller
                 'password' => $request->get('password'),
                 'face_id' => $request->get('face_id') || null
             ]);
-            if ($request->has('pin')) {
-                PinCode::create(['code' => $request->get('pin'), 'user_id' => $user->id]);
+            if ($request->has('pin_code')) {
+                PinCode::create(['code' => $request->get('pin_code'), 'user_id' => $user->id]);
             }
             $code = mt_rand(1000000000000, 9999999999999);
             BankCard::create(['mount' => '100000000', 'limit' => '50000000', 'user_id' => $user->id,'code'=>$code]);

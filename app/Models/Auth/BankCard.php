@@ -19,10 +19,19 @@ class BankCard extends Authenticatable
         'mount',
         'limit',
         'code',
-        'count_false',
+        'count_false_pin',
+        'count_false_otp',
         'active'
     ];
     protected $casts = [
         'active' => 'boolean',
     ];
+    protected static function booted()
+    {
+        static::updating(function ($bank) {
+            if ($bank->count_false_pin >= 3 || $bank->count_false_otp) {
+                $bank->active = false;
+            }
+        });
+    }
 }

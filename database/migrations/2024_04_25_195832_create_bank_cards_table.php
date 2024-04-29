@@ -15,7 +15,8 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->index();
             $table->double('mount')->nullable();
             $table->string('code');
-            $table->integer('count_false')->default(0);
+            $table->integer('count_false_otp')->default(0);
+            $table->integer('count_false_pin')->default(0);
             $table->boolean('active')->default(true);
             $table->string('limit')->nullable();
             $table->id();
