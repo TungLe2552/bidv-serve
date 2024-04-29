@@ -41,6 +41,9 @@ class TransactionController extends Controller
         $user = $request->user();
         $bank_card = BankCard::where('user_id', $user->id)->first();
         $pin = PinCode::where('user_id', $user->id)->first();
+        if(empty($request->get('pin_code'))){
+            abort(400, 'Bạn cần nhập mã pin giao dịch');
+        }
         if (!$bank_card->active && $bank_card->count_false_pin >= 3) {
             abort(400, 'Thẻ của bạn đã bị khoá giao dịch do nhập sai mã pin giao dịch quá 3 lần');
         }
