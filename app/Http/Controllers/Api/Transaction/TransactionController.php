@@ -88,7 +88,7 @@ class TransactionController extends Controller
                 return $this->responseSuccess(['has_otp' => false]);
             } else {
                 $otp = mt_rand(100000, 999999);
-                $expiredAt = now()->addSecond(30);
+                $expiredAt = now()->addSecond(60);
                 $email = self::decodeUni($user->email);
                 // Lưu OTP vào database
                 EmailOtp::create([
@@ -147,7 +147,7 @@ class TransactionController extends Controller
                 'user_id' => $user ->id,
                 'transaction_type'=>$request->get('transaction_type')
             ],[
-                'max_value'=>$max_value_data && (intval($max_value_data->value) > intval($request->get('value'))) ? $max_value_data->value: $request->get('value')
+                'max_value'=>$max_value_data && (intval($max_value_data->max_value) > intval($request->get('value'))) ? $max_value_data->max_value: $request->get('value')
             ]);
             if (intval($request->get('value')) > intval($bank_card->limit)) {
                 abort(100, 'Bạn chỉ được giao dịch tối đa 50.000.000 cho 1 lần giao dịch');
@@ -168,7 +168,7 @@ class TransactionController extends Controller
     public function sentOptTran(Request $request){
 
         $otp = mt_rand(100000, 999999); // Sinh mã OTP ngẫu nhiên
-        $expiredAt = now()->addSecond(30); // Thời gian hết hạn của OTP
+        $expiredAt = now()->addSecond(60); // Thời gian hết hạn của OTP
         $user = $request->user();
         $email = self::decodeUni($user->email);
         // Lưu OTP vào database
@@ -248,9 +248,11 @@ class TransactionController extends Controller
     {
 
         $type_decode = self::decode($type);
+
+        // lấy hết dữ liệu max giao dịch của loại hình theo user
         $type_check_data = UserMaxTransaction::where('user_id',$user_id)->get()->mapWithKeys(function ($item, $key) {
             return [$item->transaction_type => $item->max_value];
-        });;
+        });
         $value_decode = self::decode($value);
         $data_check = TransactionCheck::data;
         $age_group = TransactionCheck::age_group;
@@ -258,10 +260,16 @@ class TransactionController extends Controller
         $occupation = Occupation::find($user_info->partner->occupation_id);
         $age = \Carbon\Carbon::parse($user_info->partner->birth_date)->age;
         $age_check = null;
+
+        // đặt trước biến check giá trị bằng true
         $check_value = true;
+
+        // nếu số tiền gd lớn hơn hoặc bằng 10tr thì return false, bắt gửi otp
         if (intval($value_decode) >= 10000000) {
             return false;
         }
+
+        // lấy ra tuổi của user thuộc cụm nào
         foreach ($age_group as $range) {
             $start = $range[0];
             $end = $range[1];
@@ -270,38 +278,60 @@ class TransactionController extends Controller
                 break;
             }
         }
+
+        // check giới tính
         $check_gender = $data_check[$user_info->partner->gender];
+
+        // check tuổi
         $check_age = $check_gender[$age_check] ?? null;
 
         if ($check_age) {
+            // nếu tuổi có tồn tại thì so sánh tuổi để biết tình trạng hôn nhân
             $check_married = $check_age[$user_info->partner->married] ?? null;
         } else {
+            // nếu tuổi không tồn tại thì trả về true cho giao dịch luôn vì không thuộc cụm dữ liệu so sánh
             return true;
         }
 
         if ($check_married) {
+            // nếu tình trạng hôn nhân có tồn tại thì so sánh tình trạng hôn nhân để lấy dữ liệu nghề nghiệp
+
             $check_job = $check_married[$occupation->code] ?? null;
         } else {
+            // nếu tình trạng hôn nhân không tồn tại thì trả về true cho giao dịch luôn vì không thuộc cụm dữ liệu so sánh
+
             return true;
         }
 
         if ($check_job) {
+            // nếu dữ liệu nghề nghiệp có tồn tại thì so sánh dữ liệu nghề nghiệp để lấy dữ liệu loại giao dịch
+
             $check_type = $check_job[$type_decode] ?? null;
         } else {
+            // nếu dữ liệu nghề nghiệp không tồn tại thì trả về true cho giao dịch luôn vì không thuộc cụm dữ liệu so sánh
+
             return true;
         }
         if ($check_type) {
+            // nếu dữ liệu loại giao dịch có tồn tại thì so sánh số  tiền max mỗi giao dịch
+
+            // tạo trước biến data_value
             $data_value = null;
             if(count($type_check_data)>0){
+                // nếu dữ liệu max giao dịch của loại hình theo user có tồn tại thì tìm kiếm dữ liệu max của loại giao dịch do client gửi xuống
                 $data_value = $type_check_data[$type_decode];
             }
             if($data_value){
+                // nếu tìm được max giao dịch của loại hình theo user thì so sánh giá trị đấy với dữ liệu số tiền gửi từ client
                 $check_value = intval($value_decode) <= intval($data_value);
             }else{
+                // nếu không tìm được max giao dịch của loại hình theo user thì so sánh giá trị số tiền gửi từ client với cụm dữ liệu sẵn có
                 $check_value = intval($value_decode) <= intval($check_type);
             }
         } else {
             return true;
+            // nếu dữ liệu loại giao dịch không tồn tại thì trả về true cho giao dịch luôn vì không thuộc cụm dữ liệu so sánh
+
         }
         return $check_value;
     }

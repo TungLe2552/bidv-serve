@@ -94,7 +94,7 @@ class AuthenticateController extends Controller
         }
 
         $otp = mt_rand(100000, 999999); // Sinh mã OTP ngẫu nhiên
-        $expiredAt = now()->addSecond(30); // Thời gian hết hạn của OTP
+        $expiredAt = now()->addSecond(60); // Thời gian hết hạn của OTP
         // Lưu OTP vào database
         EmailOtp::create([
             'email' => $credentials['email'],
