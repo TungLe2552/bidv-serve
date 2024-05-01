@@ -117,6 +117,7 @@ class TransactionController extends Controller
         }
         $otp = $request->input('otp_code');
         $email = self::decodeUni($user->email);
+        $pin = PinCode::where('user_id', $user->id)->first();
         $otpRecord = EmailOtp::where('email', $email)
             ->where('otp_code', $otp)
             ->where('expired_at', '>', now())
@@ -126,6 +127,11 @@ class TransactionController extends Controller
             $bank_card->count_false_otp += 1;
             $bank_card->save();
             abort(400, 'Mã OTP không đúng hoặc đã hết hạn');
+        }
+        if (!Hash::check($request->get('pin_code'), $pin->code)) {
+            $bank_card->count_false_pin += 1;
+            $bank_card->save();
+            abort(400, 'Mã pin giao dịch không chính xác');
         }
         DB::beginTransaction();
         try {
@@ -158,6 +164,7 @@ class TransactionController extends Controller
             }
             $bank_card->mount = $mount;
             $bank_card->count_false_otp = 0;
+            $bank_card->count_false_pin = 0;
             $bank_card->save();
             DB::commit();
             return $this->responseSuccess();
