@@ -66,6 +66,7 @@ class User extends Authenticatable
     protected static function booted()
     {
         static::updating(function ($user) {
+            // nếu count_false> 3 thì cập nhật lại trạng thái của tài khoản thành false (bị khoá)
             if ($user->count_false >= 3) {
                 $user->active = false;
             }

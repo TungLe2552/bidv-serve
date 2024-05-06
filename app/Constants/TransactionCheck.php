@@ -7,6 +7,7 @@ final class TransactionCheck
     public const age_group = [
         [18, 25], // Khoảng tuổi 18-25
         [26, 36], // Khoảng tuổi 26-36
+
     ];
     public const data = [
         "0" => [

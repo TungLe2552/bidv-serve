@@ -39,15 +39,26 @@ class TransactionController extends Controller
      */
     public function bankTransactions(Request $request)
     {
+        // lấy thông tin request
         $user = $request->user();
+
+        // Tìm thông tin tài khoản ngân hàng theo user
         $bank_card = BankCard::where('user_id', $user->id)->first();
+
+        // Tìm thông mã pin giao dịch theo user
         $pin = PinCode::where('user_id', $user->id)->first();
+
+        // Báo lỗi nếu khách hàng cố tình ko nhập mã pin
         if(empty($request->get('pin_code'))){
             abort(400, 'Bạn cần nhập mã pin giao dịch');
         }
+
+        // Báo lỗi nếu thẻ bị khoá
         if (!$bank_card->active && $bank_card->count_false_pin >= 3) {
             abort(400, 'Thẻ của bạn đã bị khoá giao dịch do nhập sai mã pin giao dịch quá 3 lần');
         }
+
+        // nếu nhập sai mã pin thì tự cộng dồn số lần nhập sai, nếu quá 3 lần sẽ khoá thẻ
         if (!Hash::check($request->get('pin_code'), $pin->code)) {
             $bank_card->count_false_pin += 1;
             $bank_card->save();
@@ -89,6 +100,7 @@ class TransactionController extends Controller
                     "transaction_type" => $transaction_type,
                     "value" => $value
                 ]);
+                // lưu lại giá trị tiền sau giao dịch
                 $bank_card->mount = $mount;
                 $bank_card->count_false_pin = 0;
                 $bank_card->save();
@@ -198,7 +210,7 @@ class TransactionController extends Controller
 
         return response()->json(['message' => 'OTP has been sent']);
     }
-    public function transactionData(Request $request)
+    public function transactionData(Request $request,)
     {
         $transactions = TransactionData::query()->get();
         $data = [];
@@ -261,18 +273,25 @@ class TransactionController extends Controller
     }
     private function checkTransaction($value, $type, $user_id)
     {
-
+        // lấy mã unicode từ constants ra để giải mã
         $type_decode = self::decode($type);
 
         // lấy hết dữ liệu max giao dịch của loại hình theo user
         $type_check_data = UserMaxTransaction::where('user_id',$user_id)->get()->mapWithKeys(function ($item, $key) {
             return [$item->transaction_type => $item->max_value];
         });
+
+        // giải mã dữ liệu
         $value_decode = self::decode($value);
+
+        // lấy ra cụm dũ liệu từ constants
         $data_check = TransactionCheck::data;
         $age_group = TransactionCheck::age_group;
+
+        //
         $user_info = User::with(['bankCard', 'partner'])->find($user_id);
         $occupation = Occupation::find($user_info->partner->occupation_id);
+        // chuyển đổi ngày tháng năm sinh ra tuổi
         $age = \Carbon\Carbon::parse($user_info->partner->birth_date)->age;
         $age_check = null;
 
@@ -294,6 +313,7 @@ class TransactionController extends Controller
             }
         }
 
+        // chèck theo cụm dữ liệu
         // check giới tính
         $check_gender = $data_check[$user_info->partner->gender];
 
@@ -304,8 +324,8 @@ class TransactionController extends Controller
             // nếu tuổi có tồn tại thì so sánh tuổi để biết tình trạng hôn nhân
             $check_married = $check_age[$user_info->partner->married] ?? null;
         } else {
-            // nếu tuổi không tồn tại thì trả về true cho giao dịch luôn vì không thuộc cụm dữ liệu so sánh
-            return true;
+            // nếu tuổi không tồn tại thì trả về true bắt nhập mã otp
+            return false;
         }
 
         if ($check_married) {
@@ -313,9 +333,9 @@ class TransactionController extends Controller
 
             $check_job = $check_married[$occupation->code] ?? null;
         } else {
-            // nếu tình trạng hôn nhân không tồn tại thì trả về true cho giao dịch luôn vì không thuộc cụm dữ liệu so sánh
+            // nếu tình trạng hôn nhân không tồn tại thì trả về false bắt nhập mã otp
 
-            return true;
+            return false;
         }
 
         if ($check_job) {
@@ -323,9 +343,9 @@ class TransactionController extends Controller
 
             $check_type = $check_job[$type_decode] ?? null;
         } else {
-            // nếu dữ liệu nghề nghiệp không tồn tại thì trả về true cho giao dịch luôn vì không thuộc cụm dữ liệu so sánh
+            // nếu dữ liệu nghề nghiệp không tồn tại thì trả về false bắt nhập mã otp
 
-            return true;
+            return false;
         }
         if ($check_type) {
             // nếu dữ liệu loại giao dịch có tồn tại thì so sánh số  tiền max mỗi giao dịch
@@ -344,8 +364,8 @@ class TransactionController extends Controller
                 $check_value = intval($value_decode) <= intval($check_type);
             }
         } else {
-            return true;
-            // nếu dữ liệu loại giao dịch không tồn tại thì trả về true cho giao dịch luôn vì không thuộc cụm dữ liệu so sánh
+            return false;
+            // nếu dữ liệu loại giao dịch không tồn tại thì trả về false bắt nhập mã otp
 
         }
         return $check_value;
