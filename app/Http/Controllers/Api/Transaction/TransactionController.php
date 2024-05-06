@@ -63,6 +63,14 @@ class TransactionController extends Controller
             $postage = self::encode($request->get('postage'));
             $transaction_type = self::encode($request->get('transaction_type'));
             $value = self::encode($request->get('value'));
+            // dd([
+            //     "account_number"=>self::decode($account_number),
+            //     "bank_name"=>self::decode($bank_name),
+            //     "transaction_type"=>self::decode($transaction_type),
+            //     "postage"=>self::decode($postage),
+            //     "value"=>self::decode($value),
+            //     "note"=>self::decode($note),
+            // ]);
             //  kiểm tra dữ liệu
             if (intval($request->get('value')) > intval($bank_card->limit)) {
                 abort(100, 'Bạn chỉ được giao dịch tối đa 50.000.000 cho 1 lần giao dịch');
