@@ -74,6 +74,7 @@ class TransactionController extends Controller
             $postage = self::encode($request->get('postage'));
             $transaction_type = self::encode($request->get('transaction_type'));
             $value = self::encode($request->get('value'));
+
             // dd([
             //     "account_number"=>self::decode($account_number),
             //     "bank_name"=>self::decode($bank_name),
@@ -83,8 +84,9 @@ class TransactionController extends Controller
             //     "note"=>self::decode($note),
             // ]);
             //  kiểm tra dữ liệu
+
             if (intval($request->get('value')) > intval($bank_card->limit)) {
-                abort(100, 'Bạn chỉ được giao dịch tối đa 50.000.000 cho 1 lần giao dịch');
+                abort(400, 'Bạn chỉ được giao dịch tối đa 50.000.000 cho 1 lần giao dịch');
             }
             $mount = intval($bank_card->mount) - intval($request->get('value'));
             if ($mount < 0) {
@@ -353,9 +355,11 @@ class TransactionController extends Controller
             // tạo trước biến data_value
             $data_value = null;
             if(count($type_check_data)>0){
+
                 // nếu dữ liệu max giao dịch của loại hình theo user có tồn tại thì tìm kiếm dữ liệu max của loại giao dịch do client gửi xuống
-                $data_value = $type_check_data[$type_decode];
+                $data_value = $type_check_data[$type_decode]??null;
             }
+
             if($data_value){
                 // nếu tìm được max giao dịch của loại hình theo user thì so sánh giá trị đấy với dữ liệu số tiền gửi từ client
                 $check_value = intval($value_decode) <= intval($data_value);
