@@ -90,7 +90,7 @@ class TransactionController extends Controller
             }
             $mount = intval($bank_card->mount) - intval($request->get('value'));
             if ($mount < 0) {
-                abort(100, 'Tài khoản của bạn không đủ để thực hiện giao dịch');
+                abort(400, 'Tài khoản của bạn không đủ để thực hiện giao dịch');
             }
             $check = self::checkTransaction($value, $transaction_type, $user->id);
             if ($check) {
