@@ -178,7 +178,7 @@ class TransactionController extends Controller
                 'max_value'=>$max_value_data && (intval($max_value_data->max_value) > intval($request->get('value'))) ? $max_value_data->max_value: $request->get('value')
             ]);
             if (intval($request->get('value')) > intval($bank_card->limit)) {
-                abort(100, 'Bạn chỉ được giao dịch tối đa 50.000.000 cho 1 lần giao dịch');
+                abort(400, 'Bạn chỉ được giao dịch tối đa 50.000.000 cho 1 lần giao dịch');
             }
             $mount = intval($bank_card->mount) - intval($request->get('value'));
             if ($mount < 0) {
