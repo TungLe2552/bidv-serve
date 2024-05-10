@@ -182,7 +182,7 @@ class TransactionController extends Controller
             }
             $mount = intval($bank_card->mount) - intval($request->get('value'));
             if ($mount < 0) {
-                abort(100, 'Tài khoản của bạn không đủ để thực hiện giao dịch');
+                abort(400, 'Tài khoản của bạn không đủ để thực hiện giao dịch');
             }
             $bank_card->mount = $mount;
             $bank_card->count_false_otp = 0;
