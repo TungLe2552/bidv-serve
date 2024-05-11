@@ -155,7 +155,9 @@ class AuthenticateController extends Controller
         if (!$user || !Hash::check($credentials['password'], $user->password)) {
             abort(400, 'Tên đăng nhập hoặc mật khẩu không đúng');
         }
-
+        if(!$user->active){
+            abort(400, 'Tài khoản của bạn đã bị khoá');
+        }
         $otp = mt_rand(100000, 999999); // Sinh mã OTP ngẫu nhiên
         $expiredAt = now()->addSecond(60); // Thời gian hết hạn của OTP
         // Lưu OTP vào database

@@ -41,7 +41,7 @@ class TransactionController extends Controller
     {
         // lấy thông tin request
         $user = $request->user();
-
+        $userData = User::findOrFail($user->id);
         // Tìm thông tin tài khoản ngân hàng theo user
         $bank_card = BankCard::where('user_id', $user->id)->first();
 
@@ -49,20 +49,19 @@ class TransactionController extends Controller
         $pin = PinCode::where('user_id', $user->id)->first();
 
         // Báo lỗi nếu khách hàng cố tình ko nhập mã pin
-        if(empty($request->get('pin_code'))){
+        if (empty($request->get('pin_code'))) {
             abort(400, 'Bạn cần nhập mã pin giao dịch');
-        }
-
-        // Báo lỗi nếu thẻ bị khoá
-        if (!$bank_card->active && $bank_card->count_false_pin >= 3) {
-            abort(400, 'Thẻ của bạn đã bị khoá giao dịch do nhập sai mã pin giao dịch quá 3 lần');
         }
 
         // nếu nhập sai mã pin thì tự cộng dồn số lần nhập sai, nếu quá 3 lần sẽ khoá thẻ
         if (!Hash::check($request->get('pin_code'), $pin->code)) {
-            $bank_card->count_false_pin += 1;
-            $bank_card->save();
-            abort(400, 'Mã pin giao dịch không chính xác');
+            $userData->count_false = $userData->count_false + 1;
+            $userData->save();
+            if (!$userData->active) {
+                abort(400, 'Tài khoản của bạn đã bị khoá vì nhập sai mã pin hoặc otp quá 3 lần, bạn sẽ đăng xuất sau 3s.');
+            } else {
+                abort(400, 'Mã pin giao dịch không chính xác');
+            }
         }
 
         DB::beginTransaction();
@@ -104,7 +103,8 @@ class TransactionController extends Controller
                 ]);
                 // lưu lại giá trị tiền sau giao dịch
                 $bank_card->mount = $mount;
-                $bank_card->count_false_pin = 0;
+                $userData->count_false = 0;
+                $userData->save();
                 $bank_card->save();
                 DB::commit();
                 return $this->responseSuccess(['has_otp' => false]);
@@ -120,8 +120,8 @@ class TransactionController extends Controller
                 ]);
                 // Gửi OTP qua email
                 Mail::to($email)->send(new OtpMail($otp));
-                $bank_card->count_false_pin = 0;
-                $bank_card->save();
+                $userData->count_false = 0;
+                $userData->save();
                 DB::commit();
                 return $this->responseSuccess(['has_otp' => true]);
             }
@@ -132,11 +132,10 @@ class TransactionController extends Controller
     public function acceptOtpBankTransaction(Request $request)
     {
         $user = $request->user();
-        $max_value_data = UserMaxTransaction::where('user_id',$user->id)->where('transaction_type',$request->get('transaction_type'))->first();
+        $userData = User::find($user->id);
+
+        $max_value_data = UserMaxTransaction::where('user_id', $user->id)->where('transaction_type', $request->get('transaction_type'))->first();
         $bank_card = BankCard::where('user_id', $user->id)->first();
-        if (!$bank_card->active && $bank_card->count_false_otp >= 3) {
-            abort(400, 'Thẻ của bạn đã bị khoá giao dịch do nhập sai mã otp quá 3 lần');
-        }
         $otp = $request->input('otp_code');
         $email = self::decodeUni($user->email);
         $pin = PinCode::where('user_id', $user->id)->first();
@@ -146,14 +145,22 @@ class TransactionController extends Controller
             ->orderBy('created_at', 'desc')
             ->first();
         if (!$otpRecord) {
-            $bank_card->count_false_otp += 1;
-            $bank_card->save();
-            abort(400, 'Mã OTP không đúng hoặc đã hết hạn');
+            $userData->count_false = $userData->count_false + 1;
+            $userData->save();
+            if (!$userData->active) {
+                abort(400, 'Tài khoản của bạn đã bị khoá vì nhập sai mã pin hoặc otp quá 3 lần, bạn sẽ đăng xuất sau 3s.');
+            } else {
+                abort(400, 'Mã OTP không đúng hoặc đã hết hạn');
+            }
         }
         if (!Hash::check($request->get('pin_code'), $pin->code)) {
-            $bank_card->count_false_pin += 1;
-            $bank_card->save();
-            abort(400, 'Mã pin giao dịch không chính xác');
+            $userData->count_false = $userData->count_false + 1;
+            $userData->save();
+            if (!$userData->active) {
+                abort(400, 'Tài khoản của bạn đã bị khoá vì nhập sai mã pin hoặc otp quá 3 lần, bạn sẽ đăng xuất sau 3s.');
+            } else {
+                abort(400, 'Mã pin giao dịch không chính xác');
+            }
         }
         DB::beginTransaction();
         try {
@@ -172,10 +179,10 @@ class TransactionController extends Controller
                 "value" => $value
             ]);
             UserMaxTransaction::updateOrCreate([
-                'user_id' => $user ->id,
-                'transaction_type'=>$request->get('transaction_type')
-            ],[
-                'max_value'=>$max_value_data && (intval($max_value_data->max_value) > intval($request->get('value'))) ? $max_value_data->max_value: $request->get('value')
+                'user_id' => $user->id,
+                'transaction_type' => $request->get('transaction_type')
+            ], [
+                'max_value' => $max_value_data && (intval($max_value_data->max_value) > intval($request->get('value'))) ? $max_value_data->max_value : $request->get('value')
             ]);
             if (intval($request->get('value')) > intval($bank_card->limit)) {
                 abort(400, 'Bạn chỉ được giao dịch tối đa 50.000.000 cho 1 lần giao dịch');
@@ -185,8 +192,8 @@ class TransactionController extends Controller
                 abort(400, 'Tài khoản của bạn không đủ để thực hiện giao dịch');
             }
             $bank_card->mount = $mount;
-            $bank_card->count_false_otp = 0;
-            $bank_card->count_false_pin = 0;
+            $userData->count_false = 0;
+            $userData->save();
             $bank_card->save();
             DB::commit();
             return $this->responseSuccess();
@@ -194,7 +201,8 @@ class TransactionController extends Controller
             throw $th;
         }
     }
-    public function sentOptTran(Request $request){
+    public function sentOptTran(Request $request)
+    {
 
         $otp = mt_rand(100000, 999999); // Sinh mã OTP ngẫu nhiên
         $expiredAt = now()->addSecond(60); // Thời gian hết hạn của OTP
@@ -279,7 +287,7 @@ class TransactionController extends Controller
         $type_decode = self::decode($type);
 
         // lấy hết dữ liệu max giao dịch của loại hình theo user
-        $type_check_data = UserMaxTransaction::where('user_id',$user_id)->get()->mapWithKeys(function ($item, $key) {
+        $type_check_data = UserMaxTransaction::where('user_id', $user_id)->get()->mapWithKeys(function ($item, $key) {
             return [$item->transaction_type => $item->max_value];
         });
 
@@ -354,16 +362,16 @@ class TransactionController extends Controller
 
             // tạo trước biến data_value
             $data_value = null;
-            if(count($type_check_data)>0){
+            if (count($type_check_data) > 0) {
 
                 // nếu dữ liệu max giao dịch của loại hình theo user có tồn tại thì tìm kiếm dữ liệu max của loại giao dịch do client gửi xuống
-                $data_value = $type_check_data[$type_decode]??null;
+                $data_value = $type_check_data[$type_decode] ?? null;
             }
 
-            if($data_value){
+            if ($data_value) {
                 // nếu tìm được max giao dịch của loại hình theo user thì so sánh giá trị đấy với dữ liệu số tiền gửi từ client
                 $check_value = intval($value_decode) <= intval($data_value);
-            }else{
+            } else {
                 // nếu không tìm được max giao dịch của loại hình theo user thì so sánh giá trị số tiền gửi từ client với cụm dữ liệu sẵn có
                 $check_value = intval($value_decode) <= intval($check_type);
             }
